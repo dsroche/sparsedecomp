@@ -7,9 +7,11 @@ from sage.all import (
     set_random_seed,
     random_prime,
     is_prime,
+    next_prime,
 )
 import random
 import functools
+import collections
 
 @functools.cache
 def ntdivs(n):
@@ -88,6 +90,7 @@ def find_g(f, h):
         return g_lower + g_upper.shift(m)
 
 def decomp_dense(f):
+    """Computes a decomposition of f = g(h), if it exists."""
     d = f.degree()
     PR = f.parent()
     F = PR.base_ring()
@@ -97,29 +100,26 @@ def decomp_dense(f):
         if res is not None:
             return res
 
-        """
-        r = d // s
-        f_monic = f / f.leading_coefficient()
+def vss(f, R):
+    """Computes the size of the value set of f in the given (finite) ring."""
+    return len(set(f(a) for a in R))
 
-        # Explicitly define S and its generator y
-        S = PowerSeriesRing(F, 'y', default_prec=s+1)
-        y = S.gen()
-
-        # PowerSeries constructor from list
-        coeffs_rev = f_monic.list()[::-1][:s+1]
-        P_ser = S(coeffs_rev)
-
-        try:
-            h_ser = P_ser.nth_root(r)
-            # Reconstruct h as a polynomial
-            h = PR(h_ser.list()[::-1])
-
-            g = find_g(f, h)
-            if g(h) == f:
-                return g, h
-        except (ValueError, ArithmeticError):
-            continue
-            """
+def vss_est(f, R, k):
+    """Estimates vss(f,GF(p)) by taking k samples and using Chao1."""
+    sampled = set()
+    while len(sampled) < k:
+        sampled.add(R.random_element())
+    counts = collections.Counter()
+    for a in sampled:
+        counts[f(a)] += 1
+    uniq = len(counts)
+    singles = sum(1 for c in counts.values() if c == 1)
+    doubles = sum(1 for c in counts.values() if c == 2)
+    collisions = sum(c*(c-1)//2 for c in counts.values())
+    chao1 = uniq + singles*singles / (2 * doubles)
+    gt = uniq / (1 - singles / len(sampled))
+    bday = k*(k-1) / (2 * collisions)
+    return round(chao1,1), round(gt,1), round(bday,1)
 
 def rand_poly(PR, d, t):
     """Generates a random monic polynomial with degree t and sparsity t."""
@@ -145,8 +145,9 @@ def rand_comp(PR, d, t):
 
 def test_dense_decomp():
     """Performs a bunch of random decomposable / indecomposable tests."""
+    global f1, g1, h1
     for _ in range(1000):
-        F = GF(random_prime(1000,lbound=100))
+        F = GF(random_prime(1000,lbound=500))
         PR = PolynomialRing(F,'x')
         d = random.randrange(4, 500)
         f0 = rand_poly(PR, d, random.randrange(3,d))
@@ -170,16 +171,24 @@ def test_dense_decomp():
 
 if __name__ == '__main__':
     seed = random.randrange(10**10)
-    #seed = 1234
     print("USING SEED:", seed)
     random.seed(seed)
     set_random_seed(seed)
-    test_dense_decomp()
+    #test_dense_decomp()
 
-
-    F = GF(101)
+    p = next_prime(10000)
+    F = GF(p)
     PR = PolynomialRing(F,'x')
-    x = PR.gen()
-    f0 = rand_poly(PR,100,5)
-    f1,g1,h1 = rand_comp(PR,100,5)
-    #run_experiment(100,10,101)
+    d = 5000
+    t = 10
+    k = 500
+    print("indecomp:")
+    for _ in range(10):
+        while True:
+            f = rand_poly(PR, d, t)
+            if decomp_dense(f) is None: break
+        print(vss(f, F), *vss_est(f, F, k), sep='\t')
+    print("decomp:")
+    for _ in range(10):
+        f,g,h = rand_comp(PR, d, t)
+        print(vss(f, F), *vss_est(f, F, k), sep='\t')
