@@ -23,6 +23,9 @@ February 2026
 
         pixi install
 
-3.  Run the experimental code to generate fresh data and graphs
+3.  Run the experimental code to generate data and graphs
 
         pixi run python experiment_run.py
+
+    This will use the existing data files. To freshly generate them,
+    just blow away the `data/` subdirectory.
