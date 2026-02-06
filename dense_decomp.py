@@ -12,6 +12,8 @@ from sage.all import (
 import random
 import functools
 import collections
+import numpy as np
+from sklearn.metrics import roc_curve
 
 @functools.cache
 def ntdivs(n):
@@ -119,7 +121,29 @@ def vss_est(f, R, k):
     chao1 = uniq + singles*singles / (2 * doubles)
     gt = uniq / (1 - singles / len(sampled))
     bday = k*(k-1) / (2 * collisions)
-    return round(chao1,1), round(gt,1), round(bday,1)
+    return collisions, round(chao1,1), round(gt,1), round(bday,1)
+
+def collisions(f, R, k):
+    """Samples f at k random points in R and returns a list of running collision counts.
+    i.e., if result[100] = 3, that means that after the first 100 samples, there were
+    3 collisions. So result[0]=result[1]=0 always, and it is monotonically non-decreasing.
+    """
+    sampled = set()
+    counts = collections.Counter()
+    result = [0]
+    running = 0
+    for i in range(k):
+        while True:
+            samp = R.random_element()
+            if samp not in sampled:
+                break
+        sampled.add(samp)
+        output = f(samp)
+        running += counts[output]
+        counts[output] += 1
+        result.append(running)
+    return result
+
 
 def rand_poly(PR, d, t):
     """Generates a random monic polynomial with degree t and sparsity t."""
@@ -132,7 +156,14 @@ def rand_poly(PR, d, t):
         coeffs[exp] = c
     return PR(coeffs)
 
-def rand_comp(PR, d, t):
+def rand_indecomp(PR, d, t):
+    """Generates a random polynomial that is indecomposable."""
+    while True:
+        f = rand_poly(PR, d, t)
+        if decomp_dense(f) is None:
+            return f
+
+def rand_decomp(PR, d, t):
     """Generates two random polynomials, each with sparsity t, to give a composed polynomial of degree d."""
     try:
         r = random.choice(ntdivs(d))
@@ -164,7 +195,7 @@ def test_dense_decomp():
         while True:
             d = random.randrange(4,500)
             if not is_prime(d): break
-        f1, g1, h1 = rand_comp(PR, d, random.randrange(3,d))
+        f1, g1, h1 = rand_decomp(PR, d, random.randrange(3,d))
         g2,h2 = decomp_dense(f1)
         assert f1 == g2(h2)
 
@@ -176,19 +207,24 @@ if __name__ == '__main__':
     set_random_seed(seed)
     #test_dense_decomp()
 
-    p = next_prime(10000)
-    F = GF(p)
-    PR = PolynomialRing(F,'x')
-    d = 5000
+    p = next_prime(2**10)
+    d = 1000
     t = 10
     k = 500
-    print("indecomp:")
-    for _ in range(10):
-        while True:
-            f = rand_poly(PR, d, t)
-            if decomp_dense(f) is None: break
-        print(vss(f, F), *vss_est(f, F, k), sep='\t')
-    print("decomp:")
-    for _ in range(10):
-        f,g,h = rand_comp(PR, d, t)
-        print(vss(f, F), *vss_est(f, F, k), sep='\t')
+    F = GF(p)
+    PR = PolynomialRing(F,'x')
+
+    trials = 100
+    print('1')
+    falses = np.fromiter(
+        (collisions(rand_indecomp(PR,d,t),F,k)[-1] for _ in range(trials)),
+        dtype=np.int32)
+    print('2')
+    trues = np.fromiter(
+        (collisions(rand_decomp(PR,d,t)[0],F,k)[-1] for _ in range(trials)),
+        dtype=np.int32)
+    print('3')
+    fpr,tpr,thresh = roc_curve(y_true=np.concat([np.zeros(len(falses)),np.ones(len(trues))]),
+                               y_score=np.concat([falses,trues]))
+    print("best accuracy:", np.max(tpr-fpr))
+    print("best threshold:", thresh[np.argmax(tpr-fpr)])
