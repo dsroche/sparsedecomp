@@ -1,4 +1,5 @@
 import random
+import math
 from pathlib import Path
 from typing import Self
 from dataclasses import dataclass
@@ -8,8 +9,8 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import json
 import cattrs
 from sklearn.metrics import roc_curve
-from uniplot import plot
 import plotext
+import matplotlib.pyplot as plt
 from sage.all import (
     GF,
     PolynomialRing,
@@ -245,3 +246,95 @@ if __name__ == '__main__':
     plotext.plot(expers['dense_big'].accuracies, label="dense")
     plotext.title("Big")
     plotext.show()
+
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.size": 10,
+        "axes.labelsize": 10,
+        "legend.fontsize": 9,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+        "lines.linewidth": 1.2, # Thinner line works better for many points
+        "figure.autolayout": True
+    })
+
+    # 3. Create a figure for an ACM column (3.3 inches wide)
+    fig, ax = plt.subplots(figsize=(3.3, 2.5))
+
+    # 4. Plot lines without markers
+    # We use one solid black line and one dashed gray line for maximum contrast
+    name = 'sparse_small'
+    exp = expers[name]
+    ax.plot(
+        np.arange(exp.nsamples+1) / math.sqrt(exp.p),
+        exp.accuracies,
+        label=name,
+        color='black',
+        linestyle='-')
+
+    name = 'dense_small'
+    exp = expers[name]
+    ax.plot(
+        np.arange(exp.nsamples+1) / math.sqrt(exp.p),
+        exp.accuracies,
+        label=name,
+        color='gray',
+        linestyle='--')
+
+    # 5. Add labels and set legend to bottom right
+    ax.set_xlabel(r'samples/$\sqrt{p}$')
+    ax.set_ylabel('accuracy')
+    ax.legend(loc='lower right', frameon=True, edgecolor='black', fancybox=False)
+
+    # 6. Subtle grid for precision
+    ax.grid(True, linestyle=':', alpha=0.6)
+
+    # 7. Save the final figure
+    plt.savefig('small.pdf', bbox_inches='tight')
+    print(f"figure saved to small.pdf")
+    plt.close()
+
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.size": 10,
+        "axes.labelsize": 10,
+        "legend.fontsize": 9,
+        "xtick.labelsize": 8,
+        "ytick.labelsize": 8,
+        "lines.linewidth": 1.2, # Thinner line works better for many points
+        "figure.autolayout": True
+    })
+
+    # 3. Create a figure for an ACM column (3.3 inches wide)
+    fig, ax = plt.subplots(figsize=(3.3, 2.5))
+
+    name = 'sparse_big'
+    exp = expers[name]
+    ax.plot(
+        np.arange(exp.nsamples+1) / math.sqrt(exp.p),
+        exp.accuracies,
+        label=name,
+        color='black',
+        linestyle='-')
+
+    name = 'dense_big'
+    exp = expers[name]
+    ax.plot(
+        np.arange(exp.nsamples+1) / math.sqrt(exp.p),
+        exp.accuracies,
+        label=name,
+        color='gray',
+        linestyle='--')
+
+    # 5. Add labels and set legend to bottom right
+    ax.set_xlabel(r'samples/$\sqrt{p}$')
+    ax.set_ylabel('accuracy')
+    ax.legend(loc='lower right', frameon=True, edgecolor='black', fancybox=False)
+
+    # 6. Subtle grid for precision
+    ax.grid(True, linestyle=':', alpha=0.6)
+
+    # 7. Save the final figure
+    plt.savefig('big.pdf', bbox_inches='tight')
+    print(f"figure saved to big.pdf")
+
