@@ -17,7 +17,7 @@ from sage.all import (
     next_prime,
 )
 from progbar import ProgressBar
-from dense_decomp import (
+from decomp import (
     collisions,
     rand_poly,
     rand_decomp,
@@ -178,6 +178,19 @@ class Experiment:
             self.test()
         print(f"done building {name}")
 
+def plot_with_iqr(sample_vals, ax, data, label, color, linestyle='-'):
+    # Calculate stats across the 1000 experiments (axis=0)
+    median = np.median(data, axis=0)
+    q1 = np.percentile(data, 25, axis=0) # 25th percentile
+    q3 = np.percentile(data, 75, axis=0) # 75th percentile
+
+    # Plot the shaded IQR envelope
+    ax.fill_between(sample_vals, q1, q3, color=color, alpha=0.2, edgecolor='none')
+
+    # Plot the median line
+    ax.plot(sample_vals, median, label=label, color=color,
+            linestyle=linestyle, linewidth=1.5)
+
 if __name__ == '__main__':
     expers = {
         'sparse_small': Experiment(
@@ -337,4 +350,54 @@ if __name__ == '__main__':
     # 7. Save the final figure
     plt.savefig('big.pdf', bbox_inches='tight')
     print(f"figure saved to big.pdf")
+    plt.close()
 
+
+    exp = expers['sparse_small']
+
+    sample_vals = np.arange(exp.nsamples+1)
+
+    datA = np.array([dc.collisions for dc in exp.test_data.decomp])
+    datB = np.array([dc.collisions for dc in exp.test_data.indecomp])
+
+    # Initialize the ACM-sized plot
+    fig, ax = plt.subplots(figsize=(3.3, 2.5))
+
+    # Plot both categories
+    plot_with_iqr(sample_vals, ax, datA, label='Decomposable', color='black', linestyle='-')
+    plot_with_iqr(sample_vals, ax, datB, label='Indecomposable', color='gray', linestyle='--')
+
+    # Styling for ACM
+    ax.set_xlabel(r'#samples')
+    ax.set_ylabel(r'collisions observed')
+    ax.legend(loc='upper left', frameon=True, edgecolor='black')
+    ax.grid(True, linestyle=':', alpha=0.5)
+
+    plt.savefig('sparse-sep.pdf', bbox_inches='tight')
+    print(f"figure saved to sparse-sep.pdf")
+    plt.close()
+
+
+    exp = expers['dense_small']
+
+    sample_vals = np.arange(exp.nsamples+1)
+
+    datA = np.array([dc.collisions for dc in exp.test_data.decomp])
+    datB = np.array([dc.collisions for dc in exp.test_data.indecomp])
+
+    # Initialize the ACM-sized plot
+    fig, ax = plt.subplots(figsize=(3.3, 2.5))
+
+    # Plot both categories
+    plot_with_iqr(sample_vals, ax, datA, label='Decomposable', color='black', linestyle='-')
+    plot_with_iqr(sample_vals, ax, datB, label='Indecomposable', color='gray', linestyle='--')
+
+    # Styling for ACM
+    ax.set_xlabel(r'#samples')
+    ax.set_ylabel(r'collisions observed')
+    ax.legend(loc='upper left', frameon=True, edgecolor='black')
+    ax.grid(True, linestyle=':', alpha=0.5)
+
+    plt.savefig('dense-sep.pdf', bbox_inches='tight')
+    print(f"figure saved to dense-sep.pdf")
+    plt.close()

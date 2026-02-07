@@ -25,7 +25,7 @@ February 2026
 
 3.  Run the experimental code to generate data and graphs
 
-        pixi run python experiment_run.py
+        pixi run python experiments.py
 
     This will use the existing data files. To freshly generate them,
     just blow away the `data/` subdirectory.
